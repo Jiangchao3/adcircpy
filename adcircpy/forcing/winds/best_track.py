@@ -24,7 +24,8 @@ from adcircpy.forcing.winds.base import WindForcing
 
 
 class BestTrackForcing(WindForcing):
-    def __init__(self, storm_id, start_date=None, end_date=None, dst_crs=None):
+    def __init__(self, storm_id: str, start_date: datetime = None, end_date: datetime = None,
+                 dst_crs: CRS = None):
         self._storm_id = storm_id
         self._start_date = start_date
         self._end_date = end_date
@@ -142,7 +143,7 @@ class BestTrackForcing(WindForcing):
         return self._start_date
 
     @start_date.setter
-    def start_date(self, start_date):
+    def start_date(self, start_date: datetime):
         self._start_date = start_date
 
     @property
@@ -156,7 +157,7 @@ class BestTrackForcing(WindForcing):
         else:
             start_date = self._df['datetime'].iloc[0]
         assert self._df['datetime'].iloc[0] <= start_date < self._df['datetime'].iloc[-1], \
-            f"start_date must be {self._df['datetime'].iloc[0]} <= start_date < " \
+            f"start_date must be {self._df['datetime'].iloc[0]} <= start_date ({start_date}) < " \
             f"{self._df['datetime'].iloc[-1]}"
         self.__start_date = start_date
 
@@ -165,7 +166,7 @@ class BestTrackForcing(WindForcing):
         return self._end_date
 
     @end_date.setter
-    def end_date(self, end_date):
+    def end_date(self, end_date: datetime):
         self._end_date = end_date
 
     @property
@@ -364,7 +365,7 @@ class BestTrackForcing(WindForcing):
             return 20
 
     @NWS.setter
-    def NWS(self, NWS):
+    def NWS(self, NWS: int):
         assert NWS in [19, 20]
         self.__NWS = int(NWS)
 
@@ -384,9 +385,9 @@ class BestTrackForcing(WindForcing):
             return 0.9
 
     @BLADj.setter
-    def BLADj(self, BLADj):
+    def BLADj(self, BLADj: float):
         BLADj = float(BLADj)
-        assert BLADj >= 0 and BLADj <= 1
+        assert 0 <= BLADj <= 1
         self.__BLADj = BLADj
 
     @property
@@ -397,9 +398,9 @@ class BestTrackForcing(WindForcing):
             return 1
 
     @geofactor.setter
-    def geofactor(self, geofactor):
+    def geofactor(self, geofactor: float):
         geofactor = float(geofactor)
-        assert geofactor >= 0 and geofactor <= 1
+        assert 0 <= geofactor <= 1
         self.__geofactor = geofactor
 
     def transform_to(self, crs: CRS):
@@ -461,7 +462,7 @@ class BestTrackForcing(WindForcing):
         return data
 
 
-def atcf_id(storm_id):
+def atcf_id(storm_id: str):
     url = 'ftp://ftp.nhc.noaa.gov/atcf/archive/storm.table'
     res = request.urlopen(url)
     df = read_csv(
