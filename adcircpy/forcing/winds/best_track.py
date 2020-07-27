@@ -362,8 +362,6 @@ class BestTrackForcing(WindForcing):
         assert 0 <= geofactor <= 1
         self.__geofactor = geofactor
 
-
-
     def _generate_record_numbers(self):
         record_number = [1]
         for i in range(1, len(self.datetime)):
