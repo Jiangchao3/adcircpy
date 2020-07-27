@@ -427,12 +427,12 @@ class NHCAdvisory(WindForcing):
             indexes, = numpy.where(numpy.asarray(data['datetime']) == _datetime)
             for idx in indexes:
                 if indexes[-1] + 1 < len(data['datetime']):
-                    dt = ((data['datetime'][indexes[-1] + 1] - data['datetime'][idx]) /
-                          timedelta(hours=1))
                     dx = haversine((data['latitude'][idx], data['longitude'][indexes[-1] + 1]),
                                    (data['latitude'][idx], data['longitude'][idx]), unit='nmi')
                     dy = haversine((data['latitude'][indexes[-1] + 1], data['longitude'][idx]),
                                    (data['latitude'][idx], data['longitude'][idx]), unit='nmi')
+                    dt = ((data['datetime'][indexes[-1] + 1] - data['datetime'][idx]) /
+                          timedelta(hours=1))
                     vx = numpy.copysign(dx / dt,
                                         data['longitude'][indexes[-1] + 1] - data['longitude'][idx])
                     vy = numpy.copysign(dy / dt,
