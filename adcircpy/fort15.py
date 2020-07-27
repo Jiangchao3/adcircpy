@@ -589,7 +589,7 @@ class Fort15:
         else:
             if self.wind_forcing is not None:
                 # check for wave forcing here as well.
-                return self.wind_forcing.NWS
+                return self.wind_forcing.nws
             else:
                 return 0
 

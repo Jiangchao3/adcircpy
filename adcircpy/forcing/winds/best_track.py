@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 import gzip
 from io import BytesIO, StringIO
 import pathlib
-from urllib import request
+import urllib.error
 import urllib.request
 
 # import utm
@@ -25,11 +25,12 @@ from adcircpy.forcing.winds.base import WindForcing
 
 class BestTrackForcing(WindForcing):
     def __init__(self, storm_id: str, start_date: datetime = None, end_date: datetime = None,
-                 dst_crs: CRS = None):
+                 crs: CRS = None):
         self._storm_id = storm_id
         self._start_date = start_date
         self._end_date = end_date
-        self._dst_crs = dst_crs
+
+        super().__init__(start_date, end_date, crs)
 
     def clip_to_bbox(self, bbox: Bbox):
         """
@@ -92,8 +93,7 @@ class BestTrackForcing(WindForcing):
     def write(self, path: str, overwrite: bool = False):
         path = pathlib.Path(path)
         if path.is_file() and not overwrite:
-            raise Exception(
-                'Files exist, set overwrite=True to allow overwrite.')
+            raise Exception('Files exist, set overwrite=True to allow overwrite.')
         with open(path, 'w') as f:
             f.write(self.fort22)
 
@@ -103,48 +103,27 @@ class BestTrackForcing(WindForcing):
 
     @property
     def _storm_id(self):
-        storm_id = f"{self.basin}"
-        storm_id += f"{self.storm_number}"
-        storm_id += f"{self.year}"
-        return storm_id
+        return f"{self.basin}{self.storm_number}{self.year}"
 
     @_storm_id.setter
     def _storm_id(self, storm_id):
-
         chars = 0
         for char in storm_id:
             if char.isdigit():
                 chars += 1
 
         if chars == 4:
-
             _atcf_id = atcf_id(storm_id)
             if _atcf_id is None:
-                msg = f'No storm with id: {storm_id}'
-                raise Exception(msg)
+                raise Exception(f'No storm with id: {storm_id}')
             storm_id = _atcf_id
 
-        url = 'ftp://ftp.nhc.noaa.gov/atcf/archive/'
-        url += storm_id[4:]
-        url += '/b'
-        url += storm_id[0:2].lower()
-        url += storm_id[2:]
-        url += '.dat.gz'
+        url = f'ftp://ftp.nhc.noaa.gov/atcf/archive/{storm_id[4:]}/b{storm_id[0:2].lower()}{storm_id[2:]}.dat.gz'
         try:
             response = urllib.request.urlopen(url)
         except urllib.error.URLError:
-            raise NameError(
-                f'Did not find storm with id {storm_id}.'
-                + f'Submitted URL was {url}.')
+            raise NameError(f'Did not find storm with id {storm_id} at url "{url}"')
         self.__atcf = BytesIO(response.read())
-
-    @property
-    def start_date(self):
-        return self._start_date
-
-    @start_date.setter
-    def start_date(self, start_date: datetime):
-        self._start_date = start_date
 
     @property
     def _start_date(self):
@@ -160,14 +139,6 @@ class BestTrackForcing(WindForcing):
             f"start_date must be {self._df['datetime'].iloc[0]} <= start_date ({start_date}) < " \
             f"{self._df['datetime'].iloc[-1]}"
         self.__start_date = start_date
-
-    @property
-    def end_date(self):
-        return self._end_date
-
-    @end_date.setter
-    def end_date(self, end_date: datetime):
-        self._end_date = end_date
 
     @property
     def _end_date(self):
@@ -358,18 +329,6 @@ class BestTrackForcing(WindForcing):
         return fort22
 
     @property
-    def NWS(self):
-        try:
-            return self.__NWS
-        except AttributeError:
-            return 20
-
-    @NWS.setter
-    def NWS(self, NWS: int):
-        assert NWS in [19, 20]
-        self.__NWS = int(NWS)
-
-    @property
     def WTIMINC(self):
         WTIMINC = self.start_date.strftime('%Y %m %d %H ')
         WTIMINC += f'{self.df["storm_number"].iloc[0]} '
@@ -403,8 +362,7 @@ class BestTrackForcing(WindForcing):
         assert 0 <= geofactor <= 1
         self.__geofactor = geofactor
 
-    def transform_to(self, crs: CRS):
-        pass
+
 
     def _generate_record_numbers(self):
         record_number = [1]
@@ -464,7 +422,7 @@ class BestTrackForcing(WindForcing):
 
 def atcf_id(storm_id: str):
     url = 'ftp://ftp.nhc.noaa.gov/atcf/archive/storm.table'
-    res = request.urlopen(url)
+    res = urllib.request.urlopen(url)
     df = read_csv(
         StringIO("".join([_.decode('utf-8') for _ in res])),
         header=None,

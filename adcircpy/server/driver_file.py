@@ -1,6 +1,5 @@
 import pathlib
 
-
 from adcircpy.server.slurm import SlurmConfig
 
 
@@ -153,10 +152,10 @@ run_hotstart_phase() {
   ln -sf ../fort.15.hotstart ./fort.15
 """
         if self._driver.wind_forcing is not None:
-            if self._driver.wind_forcing.NWS in [19, 20]:
+            if self._driver.wind_forcing.nws in [19, 20]:
                 f += "  ln -sf ../fort.15.best_track ./fort.22\n"
                 f += "  aswip\n"
-                f += f"  mv NWS_{self._driver.wind_forcing.NWS}_fort.22 "
+                f += f"  mv NWS_{self._driver.wind_forcing.nws}_fort.22 "
                 f += "fort.22\n"
 
         if self._executable.startswith('p'):
