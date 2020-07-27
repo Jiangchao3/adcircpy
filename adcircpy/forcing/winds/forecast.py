@@ -18,13 +18,13 @@ from adcircpy.forcing.winds.base import WindForcing
 
 class NHCAdvisory(WindForcing):
     def __init__(self, storm_id: str, start_date: datetime = None, end_date: datetime = None,
-                 dst_crs: CRS = None):
+                 crs: CRS = None):
         self._storm_id = storm_id
         self._start_date = start_date
         self._end_date = end_date
-        self._dst_crs = dst_crs
+        self._dst_crs = crs
 
-        super().__init__(start_date, end_date, dst_crs)
+        super().__init__(start_date, end_date, crs)
 
     def clip_to_bbox(self, bbox: Bbox):
         """
@@ -355,7 +355,6 @@ class NHCAdvisory(WindForcing):
         geofactor = float(geofactor)
         assert 0 <= geofactor <= 1
         self.__geofactor = geofactor
-
 
     def _generate_record_numbers(self):
         record_number = [1]
