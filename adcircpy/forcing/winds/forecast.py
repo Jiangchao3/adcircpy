@@ -13,8 +13,8 @@ from pandas import DataFrame
 from pyproj import CRS, Proj
 from shapely.geometry import Point, Polygon
 
+from adcircpy.forcing.winds import atcf_id
 from adcircpy.forcing.winds.base import WindForcing
-from adcircpy.forcing.winds.best_track import atcf_id
 
 
 class NHCAdvisory(WindForcing):

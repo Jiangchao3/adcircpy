@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 import gzip
-from io import BytesIO, StringIO
+from io import BytesIO
 import pathlib
 import urllib.error
 import urllib.request
@@ -10,10 +10,11 @@ from haversine import haversine
 from matplotlib import pyplot
 from matplotlib.transforms import Bbox
 import numpy
-from pandas import DataFrame, read_csv
+from pandas import DataFrame
 from pyproj import CRS, Proj
 from shapely.geometry import Point, Polygon
 
+from adcircpy.forcing.winds import atcf_id
 from adcircpy.forcing.winds.base import WindForcing
 
 
@@ -416,20 +417,3 @@ class BestTrackForcing(WindForcing):
                 data['speed'].append(int(numpy.around(speed, 0)))
                 data['direction'].append(int(numpy.around(bearing, 0)))
         return data
-
-
-def atcf_id(storm_id: str):
-    url = 'ftp://ftp.nhc.noaa.gov/atcf/archive/storm.table'
-    res = urllib.request.urlopen(url)
-    df = read_csv(
-        StringIO("".join([_.decode('utf-8') for _ in res])),
-        header=None,
-        # usecols=[]
-    )
-    name = f"{storm_id[:-4].upper():>10}"
-    year = f"{storm_id[-4:]:>5}"
-    entry = df[(df[0].isin([name]) & df[8].isin([year]))]
-    if len(entry) == 0:
-        return None
-    else:
-        return entry[20].tolist()[0].strip()
