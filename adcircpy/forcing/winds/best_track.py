@@ -28,9 +28,6 @@ class BestTrackForcing(WindForcing):
     def __init__(self, storm_id: str, start_date: datetime = None, end_date: datetime = None,
                  crs: CRS = None):
         self._storm_id = storm_id
-        self._start_date = start_date
-        self._end_date = end_date
-
         super().__init__(start_date, end_date, crs)
 
     def clip_to_bbox(self, bbox: Bbox):
