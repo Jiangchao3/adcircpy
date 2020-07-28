@@ -19,13 +19,13 @@ class WindForcing:
     def start_date(self, start_date: datetime):
         self._start_date = start_date
 
-    @abstractmethod
     @property
+    @abstractmethod
     def _start_date(self):
         raise NotImplementedError
 
-    @abstractmethod
     @_start_date.setter
+    @abstractmethod
     def _start_date(self, start_date):
         raise NotImplementedError
 
@@ -37,13 +37,13 @@ class WindForcing:
     def end_date(self, end_date: datetime):
         self._end_date = end_date
 
-    @abstractmethod
     @property
+    @abstractmethod
     def _end_date(self):
         raise NotImplementedError
 
-    @abstractmethod
     @_end_date.setter
+    @abstractmethod
     def _end_date(self, end_date):
         raise NotImplementedError
 
