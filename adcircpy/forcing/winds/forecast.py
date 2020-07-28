@@ -1,9 +1,5 @@
 from datetime import datetime, timedelta
-import gzip
-from io import BytesIO
 import pathlib
-import urllib.error
-import urllib.request
 
 from haversine import haversine
 from matplotlib import pyplot
@@ -12,12 +8,15 @@ import numpy
 from pandas import DataFrame
 from pyproj import CRS, Proj
 from shapely.geometry import Point, Polygon
+from tropycal.realtime import Realtime
 
 from adcircpy.forcing.winds import atcf_id
 from adcircpy.forcing.winds.base import WindForcing
 
 
 class NHCAdvisory(WindForcing):
+    storms = Realtime()
+
     def __init__(self, storm_id: str, start_date: datetime = None, end_date: datetime = None,
                  crs: CRS = None):
         self._storm_id = storm_id
@@ -109,12 +108,7 @@ class NHCAdvisory(WindForcing):
                 raise Exception(f'No storm with id: {storm_id}')
             storm_id = _atcf_id
 
-        url = f'ftp://ftp.nhc.noaa.gov/atcf/archive/{storm_id[4:]}/b{storm_id[0:2].lower()}{storm_id[2:]}.dat.gz'
-        try:
-            response = urllib.request.urlopen(url)
-        except urllib.error.URLError:
-            raise NameError(f'Did not find storm with id {storm_id} at url "{url}"')
-        self.__atcf = BytesIO(response.read())
+        self.storm = self.storms.get_storm(storm_id)
 
     @property
     def _start_date(self):
@@ -197,15 +191,15 @@ class NHCAdvisory(WindForcing):
             return self.__df
         except AttributeError:
             data = {
-                "basin"                       : [],
-                "storm_number"                : [],
-                "datetime"                    : [],
+                "basin"                       : self.storm['basin'],
+                "storm_number"                : self.storm['name'],
+                "datetime"                    : self.storm['date'],
                 "record_type"                 : [],
-                "latitude"                    : [],
-                "longitude"                   : [],
-                "max_sustained_wind_speed"    : [],
-                "central_pressure"            : [],
-                "development_level"           : [],
+                "latitude"                    : self.storm['lat'],
+                "longitude"                   : self.storm['lon'],
+                "max_sustained_wind_speed"    : self.storm['vmax'],
+                "central_pressure"            : self.storm['mslp'],
+                "development_level"           : self.storm['type'],
                 "isotach"                     : [],
                 "quadrant"                    : [],
                 "radius_for_NEQ"              : [],
@@ -219,50 +213,26 @@ class NHCAdvisory(WindForcing):
                 "direction"                   : [],
                 "speed"                       : []
             }
-            for i, line in enumerate(gzip.GzipFile(fileobj=self.__atcf)):
-                line = line.decode('UTF-8').split(',')
-                data['basin'].append(line[0])
-                data['storm_number'].append(line[1].strip(' '))
-                _datetime = line[2].strip(' ')
-                _minutes = line[3].strip(' ')
-                if _minutes == '':
-                    _minutes = '00'
-                _datetime = _datetime + _minutes
-                data['datetime'].append(datetime.strptime(_datetime, '%Y%m%d%H%M'))
-                data['record_type'].append(line[4].strip(' '))
-                if 'N' in line[6]:
-                    _lat = float(line[6].strip('N ')) * 0.1
-                elif 'S' in line:
-                    _lat = float(line[6].strip('S ')) * -0.1
-                data['latitude'].append(_lat)
-                if 'E' in line[7]:
-                    _lon = float(line[7].strip('E ')) * 0.1
-                elif 'W' in line[7]:
-                    _lon = float(line[7].strip('W ')) * -0.1
-                data['longitude'].append(_lon)
-                data['max_sustained_wind_speed'].append(float(line[8].strip(' ')))
-                data['central_pressure'].append(float(line[9].strip(' ')))
-                data['development_level'].append(line[10].strip(' '))
-                data['isotach'].append(int(line[11].strip(' ')))
-                data['quadrant'].append(line[12].strip(' '))
-                data['radius_for_NEQ'].append(int(line[13].strip(' ')))
-                data['radius_for_SEQ'].append(int(line[14].strip(' ')))
-                data['radius_for_SWQ'].append(int(line[15].strip(' ')))
-                data['radius_for_NWQ'].append(int(line[16].strip(' ')))
-                if len(line) > 18:
-                    data['background_pressure'].append(int(line[17].strip(' ')))
-                    data['radius_of_last_closed_isobar'].append(int(line[18].strip(' ')))
-                    data['radius_of_maximum_winds'].append(int(line[19].strip(' ')))
-                    if len(line) > 23:
-                        data['name'].append(line[27].strip(' '))
-                    else:
-                        data['name'].append('')
+            data['isotach'].append(int(line[11].strip(' ')))
+            data['quadrant'].append(line[12].strip(' '))
+            data['radius_for_NEQ'].append(int(line[13].strip(' ')))
+            data['radius_for_SEQ'].append(int(line[14].strip(' ')))
+            data['radius_for_SWQ'].append(int(line[15].strip(' ')))
+            data['radius_for_NWQ'].append(int(line[16].strip(' ')))
+            if len(line) > 18:
+                data['background_pressure'].append(int(line[17].strip(' ')))
+                data['radius_of_last_closed_isobar'].append(int(line[18].strip(' ')))
+                data['radius_of_maximum_winds'].append(int(line[19].strip(' ')))
+                if len(line) > 23:
+                    data['name'].append(line[27].strip(' '))
                 else:
-                    data['background_pressure'].append(data['background_pressure'][-1])
-                    data['radius_of_last_closed_isobar'].append(
-                        data['radius_of_last_closed_isobar'][-1])
-                    data['radius_of_maximum_winds'].append(data['radius_of_maximum_winds'][-1])
                     data['name'].append('')
+            else:
+                data['background_pressure'].append(data['background_pressure'][-1])
+                data['radius_of_last_closed_isobar'].append(
+                    data['radius_of_last_closed_isobar'][-1])
+                data['radius_of_maximum_winds'].append(data['radius_of_maximum_winds'][-1])
+                data['name'].append('')
             data = self._compute_velocity(data)
             # data = self._transform_coordinates(data)
             self.__df = DataFrame(data=data)
@@ -374,34 +344,26 @@ class NHCAdvisory(WindForcing):
         """
         Output has units of meters per second.
         """
+
         merc = Proj("EPSG:3395")
         x, y = merc(data['longitude'], data['latitude'])
-        unique_datetimes = numpy.unique(data['datetime'])
+        t = data['datetime']
+        unique_datetimes = numpy.unique(t)
         for i, _datetime in enumerate(unique_datetimes):
-            indexes, = numpy.where(numpy.asarray(data['datetime']) == _datetime)
+            indexes, = numpy.where(numpy.asarray(t) == _datetime)
             for idx in indexes:
-                if indexes[-1] + 1 < len(data['datetime']):
-                    dx = haversine((data['latitude'][idx], data['longitude'][indexes[-1] + 1]),
-                                   (data['latitude'][idx], data['longitude'][idx]), unit='nmi')
-                    dy = haversine((data['latitude'][indexes[-1] + 1], data['longitude'][idx]),
-                                   (data['latitude'][idx], data['longitude'][idx]), unit='nmi')
-                    dt = ((data['datetime'][indexes[-1] + 1] - data['datetime'][idx]) /
-                          timedelta(hours=1))
-                    vx = numpy.copysign(dx / dt,
-                                        data['longitude'][indexes[-1] + 1] - data['longitude'][idx])
-                    vy = numpy.copysign(dy / dt,
-                                        data['latitude'][indexes[-1] + 1] - data['latitude'][idx])
+                if indexes[-1] + 1 < len(t):
+                    dx = haversine((y[idx], x[indexes[-1] + 1]), (y[idx], x[idx]), unit='nmi')
+                    dy = haversine((y[indexes[-1] + 1], x[idx]), (y[idx], x[idx]), unit='nmi')
+                    dt = ((t[indexes[-1] + 1] - t[idx]) / timedelta(hours=1))
+                    vx = numpy.copysign(dx / dt, x[indexes[-1] + 1] - x[idx])
+                    vy = numpy.copysign(dy / dt, y[indexes[-1] + 1] - y[idx])
                 else:
-                    dx = haversine((data['latitude'][idx], data['longitude'][indexes[0] - 1]),
-                                   (data['latitude'][idx], data['longitude'][idx]), unit='nmi')
-                    dy = haversine((data['latitude'][indexes[0] - 1], data['longitude'][idx]),
-                                   (data['latitude'][idx], data['longitude'][idx]), unit='nmi')
-                    dt = ((data['datetime'][idx] - data['datetime'][indexes[0] - 1]) /
-                          timedelta(hours=1))
-                    vx = numpy.copysign(dx / dt,
-                                        data['longitude'][idx] - data['longitude'][indexes[0] - 1])
-                    vy = numpy.copysign(dy / dt,
-                                        data['latitude'][idx] - data['latitude'][indexes[0] - 1])
+                    dx = haversine((y[idx], x[indexes[0] - 1]), (y[idx], x[idx]), unit='nmi')
+                    dy = haversine((y[indexes[0] - 1], x[idx]), (y[idx], x[idx]), unit='nmi')
+                    dt = ((t[idx] - t[indexes[0] - 1]) / timedelta(hours=1))
+                    vx = numpy.copysign(dx / dt, x[idx] - x[indexes[0] - 1])
+                    vy = numpy.copysign(dy / dt, y[idx] - y[indexes[0] - 1])
                 speed = numpy.sqrt(dx ** 2 + dy ** 2) / dt
                 bearing = (360. + numpy.rad2deg(numpy.arctan2(vx, vy))) % 360
                 data['speed'].append(int(numpy.around(speed, 0)))
