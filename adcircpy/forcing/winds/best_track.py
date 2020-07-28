@@ -11,7 +11,7 @@ from matplotlib import pyplot
 from matplotlib.transforms import Bbox
 import numpy
 from pandas import DataFrame
-from pyproj import CRS, Proj
+from pyproj import CRS, Geod, Proj, Transformer
 from shapely.geometry import Point, Polygon
 
 from adcircpy.forcing.winds import atcf_id
@@ -384,36 +384,43 @@ class BestTrackForcing(WindForcing):
         """
         Output has units of meters per second.
         """
+
         merc = Proj("EPSG:3395")
         x, y = merc(data['longitude'], data['latitude'])
-        unique_datetimes = numpy.unique(data['datetime'])
+        t = data['datetime']
+        unique_datetimes = numpy.unique(t)
         for i, _datetime in enumerate(unique_datetimes):
-            indexes, = numpy.where(numpy.asarray(data['datetime']) == _datetime)
+            indexes, = numpy.where(numpy.asarray(t) == _datetime)
             for idx in indexes:
-                if indexes[-1] + 1 < len(data['datetime']):
-                    dx = haversine((data['latitude'][idx], data['longitude'][indexes[-1] + 1]),
-                                   (data['latitude'][idx], data['longitude'][idx]), unit='nmi')
-                    dy = haversine((data['latitude'][indexes[-1] + 1], data['longitude'][idx]),
-                                   (data['latitude'][idx], data['longitude'][idx]), unit='nmi')
-                    dt = ((data['datetime'][indexes[-1] + 1] - data['datetime'][idx]) /
-                          timedelta(hours=1))
-                    vx = numpy.copysign(dx / dt,
-                                        data['longitude'][indexes[-1] + 1] - data['longitude'][idx])
-                    vy = numpy.copysign(dy / dt,
-                                        data['latitude'][indexes[-1] + 1] - data['latitude'][idx])
+                if indexes[-1] + 1 < len(t):
+                    dx = haversine((y[idx], x[indexes[-1] + 1]), (y[idx], x[idx]), unit='nmi')
+                    dy = haversine((y[indexes[-1] + 1], x[idx]), (y[idx], x[idx]), unit='nmi')
+                    dt = ((t[indexes[-1] + 1] - t[idx]) / timedelta(hours=1))
+                    vx = numpy.copysign(dx / dt, x[indexes[-1] + 1] - x[idx])
+                    vy = numpy.copysign(dy / dt, y[indexes[-1] + 1] - y[idx])
                 else:
-                    dx = haversine((data['latitude'][idx], data['longitude'][indexes[0] - 1]),
-                                   (data['latitude'][idx], data['longitude'][idx]), unit='nmi')
-                    dy = haversine((data['latitude'][indexes[0] - 1], data['longitude'][idx]),
-                                   (data['latitude'][idx], data['longitude'][idx]), unit='nmi')
-                    dt = ((data['datetime'][idx] - data['datetime'][indexes[0] - 1]) /
-                          timedelta(hours=1))
-                    vx = numpy.copysign(dx / dt,
-                                        data['longitude'][idx] - data['longitude'][indexes[0] - 1])
-                    vy = numpy.copysign(dy / dt,
-                                        data['latitude'][idx] - data['latitude'][indexes[0] - 1])
+                    dx = haversine((y[idx], x[indexes[0] - 1]), (y[idx], x[idx]), unit='nmi')
+                    dy = haversine((y[indexes[0] - 1], x[idx]), (y[idx], x[idx]), unit='nmi')
+                    dt = ((t[idx] - t[indexes[0] - 1]) / timedelta(hours=1))
+                    vx = numpy.copysign(dx / dt, x[idx] - x[indexes[0] - 1])
+                    vy = numpy.copysign(dy / dt, y[idx] - y[indexes[0] - 1])
                 speed = numpy.sqrt(dx ** 2 + dy ** 2) / dt
                 bearing = (360. + numpy.rad2deg(numpy.arctan2(vx, vy))) % 360
                 data['speed'].append(int(numpy.around(speed, 0)))
                 data['direction'].append(int(numpy.around(bearing, 0)))
         return data
+
+
+def ellipsoidal_distance(point_a: (float, float), point_b: (float, float), crs_a: CRS,
+                         crs_b: CRS = None) -> float:
+    if isinstance(point_a, Point):
+        point_a = [*point_a.coords]
+    if isinstance(point_b, Point):
+        point_b = [*point_b.coords]
+    if crs_b is not None:
+        transformer = Transformer.from_crs(crs_b, crs_a)
+        point_b = transformer.transform(*point_b)
+    datum_json = crs_a.datum.to_json_dict()
+    ellipsoid = Geod(a=datum_json['ellipsoid']['semi_major_axis'],
+                     rf=datum_json['ellipsoid']['inverse_flattening'])
+    return ellipsoid.inv(point_a[0], point_a[1], point_b[0], point_b[1])[2]
