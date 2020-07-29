@@ -180,9 +180,8 @@ class NHCAdvisory(WindForcing):
 
     @property
     def df(self):
-        start_date_mask = self._df["datetime"] >= self.start_date
-        end_date_mask = self._df["datetime"] <= self._file_end_date
-        return self._df[start_date_mask & end_date_mask]
+        return self._df[self._df['datetime'] >= self.start_date &
+                        self._df['datetime'] <= self._file_end_date]
 
     @property
     def _df(self):
@@ -191,48 +190,28 @@ class NHCAdvisory(WindForcing):
             return self.__df
         except AttributeError:
             data = {
-                "basin"                       : self.storm['basin'],
-                "storm_number"                : self.storm['name'],
+                "basin"                       : self.storm['wmo_basin'],
+                "storm_number"                : int(self.storm['id'][2:4]),
                 "datetime"                    : self.storm['date'],
-                "record_type"                 : [],
+                "record_type"                 : self.storm['special'],
                 "latitude"                    : self.storm['lat'],
                 "longitude"                   : self.storm['lon'],
                 "max_sustained_wind_speed"    : self.storm['vmax'],
                 "central_pressure"            : self.storm['mslp'],
                 "development_level"           : self.storm['type'],
-                "isotach"                     : [],
-                "quadrant"                    : [],
-                "radius_for_NEQ"              : [],
-                "radius_for_SEQ"              : [],
-                "radius_for_SWQ"              : [],
-                "radius_for_NWQ"              : [],
-                "background_pressure"         : [],
-                "radius_of_last_closed_isobar": [],
-                "radius_of_maximum_winds"     : [],
-                "name"                        : [],
-                "direction"                   : [],
-                "speed"                       : []
+                "isotach"                     : None,
+                "quadrant"                    : None,
+                "radius_for_NEQ"              : None,
+                "radius_for_SEQ"              : None,
+                "radius_for_SWQ"              : None,
+                "radius_for_NWQ"              : None,
+                "background_pressure"         : None,
+                "radius_of_last_closed_isobar": None,
+                "radius_of_maximum_winds"     : None,
+                "name"                        : self.storm['name'],
+                "direction"                   : None,
+                "speed"                       : None
             }
-            data['isotach'].append(int(line[11].strip(' ')))
-            data['quadrant'].append(line[12].strip(' '))
-            data['radius_for_NEQ'].append(int(line[13].strip(' ')))
-            data['radius_for_SEQ'].append(int(line[14].strip(' ')))
-            data['radius_for_SWQ'].append(int(line[15].strip(' ')))
-            data['radius_for_NWQ'].append(int(line[16].strip(' ')))
-            if len(line) > 18:
-                data['background_pressure'].append(int(line[17].strip(' ')))
-                data['radius_of_last_closed_isobar'].append(int(line[18].strip(' ')))
-                data['radius_of_maximum_winds'].append(int(line[19].strip(' ')))
-                if len(line) > 23:
-                    data['name'].append(line[27].strip(' '))
-                else:
-                    data['name'].append('')
-            else:
-                data['background_pressure'].append(data['background_pressure'][-1])
-                data['radius_of_last_closed_isobar'].append(
-                    data['radius_of_last_closed_isobar'][-1])
-                data['radius_of_maximum_winds'].append(data['radius_of_maximum_winds'][-1])
-                data['name'].append('')
             data = self._compute_velocity(data)
             # data = self._transform_coordinates(data)
             self.__df = DataFrame(data=data)
@@ -291,11 +270,8 @@ class NHCAdvisory(WindForcing):
 
     @property
     def WTIMINC(self):
-        WTIMINC = self.start_date.strftime('%Y %m %d %H ')
-        WTIMINC += f'{self.df["storm_number"].iloc[0]} '
-        WTIMINC += f'{self.BLADj} '
-        WTIMINC += f'{self.geofactor}'
-        return WTIMINC
+        return f'{self.start_date:%Y %m %d %H} ' \
+               f'{self.df["storm_number"].iloc[0]} {self.BLADj} {self.geofactor}'
 
     @property
     def BLADj(self):

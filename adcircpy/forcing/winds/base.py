@@ -8,7 +8,7 @@ class WindForcing:
     def __init__(self, start_date: datetime, end_date: datetime, crs: CRS, nws: int = 20):
         self.start_date = start_date
         self.end_date = end_date
-        self.nws = nws
+        self.NWS = nws
         self.crs = crs
 
     @property
@@ -48,14 +48,14 @@ class WindForcing:
         raise NotImplementedError
 
     @property
-    def nws(self):
+    def NWS(self):
         try:
             return self.__nws
         except AttributeError:
             return 20
 
-    @nws.setter
-    def nws(self, nws: int):
+    @NWS.setter
+    def NWS(self, nws: int):
         assert nws in [19, 20]
         self.__nws = int(nws)
 
