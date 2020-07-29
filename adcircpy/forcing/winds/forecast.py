@@ -180,8 +180,8 @@ class NHCAdvisory(WindForcing):
 
     @property
     def df(self):
-        return self._df[self._df['datetime'] >= self.start_date &
-                        self._df['datetime'] <= self._file_end_date]
+        return self._df[(self._df['datetime'] >= self.start_date) &
+                        (self._df['datetime'] <= self._file_end_date)]
 
     @property
     def _df(self):
@@ -209,8 +209,8 @@ class NHCAdvisory(WindForcing):
                 "radius_of_last_closed_isobar": None,
                 "radius_of_maximum_winds"     : None,
                 "name"                        : self.storm['name'],
-                "direction"                   : None,
-                "speed"                       : None
+                "direction"                   : [],
+                "speed"                       : []
             }
             data = self._compute_velocity(data)
             # data = self._transform_coordinates(data)
@@ -222,49 +222,60 @@ class NHCAdvisory(WindForcing):
         record_number = self._generate_record_numbers()
         fort22 = ''
         for i, (_, row) in enumerate(self.df.iterrows()):
-            fort22 += f'{row["basin"]:<2},'
-            fort22 += f'{row["storm_number"]:>3},'
-            fort22 += f'{format(row["datetime"], "%Y%m%d%H"):>11},'
-            fort22 += f'{"":3},'
-            fort22 += f'{row["record_type"]:>5},'
-            fort22 += f'{int((row["datetime"] - self.start_date) / timedelta(hours=1)):>4},'
-            if row["latitude"] >= 0:
-                fort22 += f'{int(row["latitude"] / 0.1):>4}N,'
+            latitude = row['latitude']
+            if latitude >= 0:
+                latitude = f'{int(latitude / 0.1):>4}N'
             else:
-                fort22 += f'{int(row["latitude"] / -0.1):>4}S,'
-            if row["longitude"] >= 0:
-                fort22 += f'{int(row["longitude"] / 0.1):>5}E,'
+                latitude = f'{int(latitude / -0.1):>4}S'
+            longitude = row['longitude']
+            if longitude >= 0:
+                longitude = f'{int(longitude / 0.1):>5}E'
             else:
-                fort22 += f'{int(row["longitude"] / -0.1):>5}W,'
-            fort22 += f'{int(row["max_sustained_wind_speed"]):>4},'
-            fort22 += f'{int(row["central_pressure"]):>5},'
-            fort22 += f'{row["development_level"]:>3},'
-            fort22 += f'{int(row["isotach"]):>4},'
-            fort22 += f'{row["quadrant"]:>4},'
-            fort22 += f'{int(row["radius_for_NEQ"]):>5},'
-            fort22 += f'{int(row["radius_for_SEQ"]):>5},'
-            fort22 += f'{int(row["radius_for_SWQ"]):>5},'
-            fort22 += f'{int(row["radius_for_NWQ"]):>5},'
-            if row["background_pressure"] is None:
-                row["background_pressure"] = self.df["background_pressure"].iloc[i - 1]
-            if row["background_pressure"] <= row["central_pressure"] < 1013:
-                fort22 += f'{1013:>5},'
-            elif row["background_pressure"] <= row["central_pressure"] >= 1013:
-                fort22 += f'{int(row["central_pressure"] + 1):>5},'
+                longitude = f'{int(longitude / -0.1):>5}W'
+
+            background_pressure = row["background_pressure"]
+            if background_pressure is None:
+                background_pressure = self.df["background_pressure"].iloc[i - 1]
+            if background_pressure is not None:
+                if background_pressure <= row["central_pressure"] < 1013:
+                    background_pressure = 1013
+                elif background_pressure <= row["central_pressure"] >= 1013:
+                    background_pressure = int(row["central_pressure"] + 1)
+                else:
+                    background_pressure = int(row["background_pressure"])
             else:
-                fort22 += f'{int(row["background_pressure"]):>5},'
-            fort22 += f'{int(row["radius_of_last_closed_isobar"]):>5},'
-            fort22 += f'{int(row["radius_of_maximum_winds"]):>4},'
+                background_pressure = ""
+
+            fort22 += f'{row["basin"]:<2},' \
+                      f'{row["storm_number"]:>3},' \
+                      f'{format(row["datetime"], "%Y%m%d%H"):>11},' \
+                      f'{"":3},' \
+                      f'{row["record_type"]:>5},' \
+                      f'{int((row["datetime"] - self.start_date) / timedelta(hours=1)):>4},' \
+                      f'{latitude:>5},' \
+                      f'{longitude:>5},' \
+                      f'{int(row["max_sustained_wind_speed"]):>4},' \
+                      f'{int(row["central_pressure"]):>5},' \
+                      f'{row["development_level"] if row["development_level"] is not None else "":>3},' \
+                      f'{int(row["isotach"]) if row["isotach"] is not None else "":>4},' \
+                      f'{row["quadrant"] if row["quadrant"] is not None else "":>4},' \
+                      f'{int(row["radius_for_NEQ"]) if row["radius_for_NEQ"] is not None else "":>5},' \
+                      f'{int(row["radius_for_SEQ"]) if row["radius_for_SEQ"] is not None else "":>5},' \
+                      f'{int(row["radius_for_SWQ"]) if row["radius_for_SWQ"] is not None else "":>5},' \
+                      f'{int(row["radius_for_NWQ"]) if row["radius_for_NWQ"] is not None else "":>5},' \
+                      f'{background_pressure:>5},' \
+                      f'{int(row["radius_of_last_closed_isobar"]) if row["radius_of_last_closed_isobar"] is not None else "":>5},' \
+                      f'{int(row["radius_of_maximum_winds"]) if row["radius_of_maximum_winds"] is not None else "":>4},'
             fort22 += f'{"":>5},'  # gust
             fort22 += f'{"":>4},'  # eye
             fort22 += f'{"":>4},'  # subregion
             fort22 += f'{"":>4},'  # maxseas
             fort22 += f'{"":>4},'  # initials
-            fort22 += f'{row["direction"]:>3},'
-            fort22 += f'{row["speed"]:>4},'
-            fort22 += f'{row["name"]:^12},'
+            fort22 += f'{row["direction"] if row["direction"] is not None else "":>3},' \
+                      f'{row["speed"]:>4},' \
+                      f'{row["name"]:^12},'
             # from this point forwards it's all aswip
-            fort22 += f'{record_number[i]:>4},'
+            fort22 += f'{record_number[i]:>4}'
             fort22 += '\n'
         return fort22
 
