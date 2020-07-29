@@ -14,11 +14,13 @@ dependencies:
   - scipy
   - seaborn
   - shapely
+  - tropycal
   - pip:
       - coverage
       - coverage-badge
       - eventlet
       - haversine
+      - lxml
       - nose
       - ordered-set
       - rednose
