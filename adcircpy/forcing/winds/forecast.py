@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from functools import lru_cache
 import pathlib
 
 from haversine import haversine
@@ -73,7 +74,7 @@ class NHCAdvisory(WindForcing):
             ax.quiver(
                 self.longitude.iloc[i], self.latitude.iloc[i], U, V, **kwargs)
             ax.annotate(
-                self.df['datetime'].iloc[i],
+                self.data_frame['datetime'].iloc[i],
                 (self.longitude.iloc[i], self.latitude.iloc[i])
             )
         if show:
@@ -93,22 +94,20 @@ class NHCAdvisory(WindForcing):
 
     @property
     def _storm_id(self):
-        return f"{self.basin}{self.storm_number}{self.year}"
+        return self.__storm_id
 
     @_storm_id.setter
     def _storm_id(self, storm_id):
-        chars = 0
-        for char in storm_id:
-            if char.isdigit():
-                chars += 1
-
-        if chars == 4:
-            _atcf_id = atcf_id(storm_id)
-            if _atcf_id is None:
-                raise Exception(f'No storm with id: {storm_id}')
-            storm_id = _atcf_id
+        num_digits = len([char for char in storm_id if char.isdigit()])
+        # check if only year is supplied
+        if num_digits == 4:
+            id = atcf_id(storm_id)
+            if id is None:
+                raise Exception(f'No storm with id "{storm_id}"')
+            storm_id = id
 
         self.storm = self.storms.get_storm(storm_id)
+        self.__storm_id = storm_id
 
     @property
     def _start_date(self):
@@ -144,42 +143,43 @@ class NHCAdvisory(WindForcing):
 
     @property
     def name(self):
-        return self.df['name'].value_counts()[:].index.tolist()[0]
+        return self.data_frame['name'].value_counts()[:].index.tolist()[0]
 
     @property
     def basin(self):
-        return self.df['basin'].iloc[0]
+        return self.data_frame['basin'].iloc[0]
 
     @property
     def storm_number(self):
-        return self.df['storm_number'].iloc[0]
+        return self.data_frame['storm_number'].iloc[0]
 
     @property
     def year(self):
-        return self.df['datetime'].iloc[0].year
+        return self.data_frame['datetime'].iloc[0].year
 
     @property
     def datetime(self):
-        return self.df['datetime']
+        return self.data_frame['datetime']
 
     @property
     def speed(self):
-        return self.df['speed']
+        return self.data_frame['speed']
 
     @property
     def direction(self):
-        return self.df['direction']
+        return self.data_frame['direction']
 
     @property
     def longitude(self):
-        return self.df['longitude']
+        return self.data_frame['longitude']
 
     @property
     def latitude(self):
-        return self.df['latitude']
+        return self.data_frame['latitude']
 
     @property
-    def df(self):
+    @lru_cache(maxsize=None)
+    def data_frame(self):
         return self._df[(self._df['datetime'] >= self.start_date) &
                         (self._df['datetime'] <= self._file_end_date)]
 
@@ -189,7 +189,7 @@ class NHCAdvisory(WindForcing):
         try:
             return self.__df
         except AttributeError:
-            data = {
+            historic_data = {
                 "basin"                       : self.storm['wmo_basin'],
                 "storm_number"                : int(self.storm['id'][2:4]),
                 "datetime"                    : self.storm['date'],
@@ -212,16 +212,41 @@ class NHCAdvisory(WindForcing):
                 "direction"                   : None,
                 "speed"                       : None
             }
-            data = self._compute_velocity(data)
+            historic_data = self._compute_velocity(historic_data)
+            forecast = self.storm.get_forecast_realtime()
+            forecast_data = {
+                "basin"                       : self.storm['wmo_basin'],
+                "storm_number"                : int(self.storm['id'][2:4]),
+                "datetime"                    : self.storm['date'],
+                "record_type"                 : self.storm['special'],
+                "latitude"                    : self.storm['lat'],
+                "longitude"                   : self.storm['lon'],
+                "max_sustained_wind_speed"    : self.storm['vmax'],
+                "central_pressure"            : self.storm['mslp'],
+                "development_level"           : self.storm['type'],
+                "isotach"                     : None,
+                "quadrant"                    : None,
+                "radius_for_NEQ"              : None,
+                "radius_for_SEQ"              : None,
+                "radius_for_SWQ"              : None,
+                "radius_for_NWQ"              : None,
+                "background_pressure"         : None,
+                "radius_of_last_closed_isobar": None,
+                "radius_of_maximum_winds"     : None,
+                "name"                        : self.storm['name'],
+                "direction"                   : None,
+                "speed"                       : None
+            }
+            forecast_data = self._compute_velocity(forecast_data)
             # data = self._transform_coordinates(data)
-            self.__df = DataFrame(data=data)
+            self.__df = DataFrame(data=historic_data)
             return self.__df
 
     @property
     def fort22(self):
         record_number = self._generate_record_numbers()
         fort22 = ''
-        for i, (_, row) in enumerate(self.df.iterrows()):
+        for i, (_, row) in enumerate(self.data_frame.iterrows()):
             longitude = row['longitude']
             latitude = row['latitude']
             if longitude >= 0:
@@ -237,7 +262,7 @@ class NHCAdvisory(WindForcing):
 
             background_pressure = row['background_pressure']
             if background_pressure is None:
-                background_pressure = self.df['background_pressure'].iloc[i - 1]
+                background_pressure = self.data_frame['background_pressure'].iloc[i - 1]
             if background_pressure is not None:
                 if background_pressure <= row['central_pressure'] < 1013:
                     background_pressure = 1013
@@ -316,7 +341,7 @@ class NHCAdvisory(WindForcing):
     @property
     def WTIMINC(self):
         return f'{self.start_date:%Y %m %d %H} ' \
-               f'{self.df["storm_number"].iloc[0]} {self.BLADj} {self.geofactor}'
+               f'{self.data_frame["storm_number"].iloc[0]} {self.BLADj} {self.geofactor}'
 
     @property
     def BLADj(self):
@@ -395,3 +420,11 @@ class NHCAdvisory(WindForcing):
                 data['direction'].append(int(numpy.around(bearing, 0)))
                 data['speed'].append(int(numpy.around(speed, 0)))
         return data
+
+
+if __name__ == '__main__':
+    advisory = NHCAdvisory('AL092020')
+    data_frame = advisory.data_frame
+    # fort22 = advisory.fort22
+
+    print('done')
