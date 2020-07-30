@@ -246,37 +246,40 @@ class NHCAdvisory(WindForcing):
             else:
                 background_pressure = ""
 
-            fort22 += f'{row["basin"]:<2},' \
-                      f'{row["storm_number"]:>3},' \
-                      f'{format(row["datetime"], "%Y%m%d%H"):>11},' \
-                      f'{"":3},' \
-                      f'{row["record_type"]:>5},' \
-                      f'{int((row["datetime"] - self.start_date) / timedelta(hours=1)):>4},' \
-                      f'{latitude:>5},' \
-                      f'{longitude:>5},' \
-                      f'{int(row["max_sustained_wind_speed"]):>4},' \
-                      f'{int(row["central_pressure"]):>5},' \
-                      f'{row["development_level"] if row["development_level"] is not None else "":>3},' \
-                      f'{int(row["isotach"]) if row["isotach"] is not None else "":>4},' \
-                      f'{row["quadrant"] if row["quadrant"] is not None else "":>4},' \
-                      f'{int(row["radius_for_NEQ"]) if row["radius_for_NEQ"] is not None else "":>5},' \
-                      f'{int(row["radius_for_SEQ"]) if row["radius_for_SEQ"] is not None else "":>5},' \
-                      f'{int(row["radius_for_SWQ"]) if row["radius_for_SWQ"] is not None else "":>5},' \
-                      f'{int(row["radius_for_NWQ"]) if row["radius_for_NWQ"] is not None else "":>5},' \
-                      f'{background_pressure:>5},' \
-                      f'{int(row["radius_of_last_closed_isobar"]) if row["radius_of_last_closed_isobar"] is not None else "":>5},' \
-                      f'{int(row["radius_of_maximum_winds"]) if row["radius_of_maximum_winds"] is not None else "":>4},'
-            fort22 += f'{"":>5},'  # gust
-            fort22 += f'{"":>4},'  # eye
-            fort22 += f'{"":>4},'  # subregion
-            fort22 += f'{"":>4},'  # maxseas
-            fort22 += f'{"":>4},'  # initials
-            fort22 += f'{row["direction"] if row["direction"] is not None else "":>3},' \
-                      f'{row["speed"]:>4},' \
-                      f'{row["name"]:^12},'
-            # from this point forwards it's all aswip
-            fort22 += f'{record_number[i]:>4}'
-            fort22 += '\n'
+            row.extend([
+                f'{row["basin"]:<2},',
+                f'{row["storm_number"]:>3},',
+                f'{format(row["datetime"], "%Y%m%d%H"):>11},',
+                f'{"":3},',
+                f'{row["record_type"]:>5},',
+                f'{int((row["datetime"] - self.start_date) / timedelta(hours=1)):>4},',
+                f'{latitude:>5},',
+                f'{longitude:>5},',
+                f'{int(row["max_sustained_wind_speed"]):>4},',
+                f'{int(row["central_pressure"]):>5},',
+                f'{row["development_level"] if row["development_level"] is not None else "":>3},',
+                f'{int(row["isotach"]) if row["isotach"] is not None else "":>4},',
+                f'{row["quadrant"] if row["quadrant"] is not None else "":>4},',
+                f'{int(row["radius_for_NEQ"]) if row["radius_for_NEQ"] is not None else "":>5},',
+                f'{int(row["radius_for_SEQ"]) if row["radius_for_SEQ"] is not None else "":>5},',
+                f'{int(row["radius_for_SWQ"]) if row["radius_for_SWQ"] is not None else "":>5},',
+                f'{int(row["radius_for_NWQ"]) if row["radius_for_NWQ"] is not None else "":>5},',
+                f'{background_pressure:>5},',
+                f'{int(row["radius_of_last_closed_isobar"]) if row["radius_of_last_closed_isobar"] is not None else "":>5},',
+                f'{int(row["radius_of_maximum_winds"]) if row["radius_of_maximum_winds"] is not None else "":>4},'
+                f'{"":>5},',  # gust
+                f'{"":>4},',  # eye
+                f'{"":>4},',  # subregion
+                f'{"":>4},',  # maxseas
+                f'{"":>4},',  # initials
+                f'{row["direction"] if row["direction"] is not None else "":>3},',
+                f'{row["speed"]:>4},',
+                f'{row["name"]:^12},',
+                # from this point forwards it's all aswip
+                f'{record_number[i]:>4}'
+            ])
+            row = ', '.join(row)
+            fort22 += f'{row}\n'
         return fort22
 
     @property
