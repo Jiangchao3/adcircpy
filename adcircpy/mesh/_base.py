@@ -22,13 +22,13 @@ from adcircpy.mesh._figures import _figure as _fig
 
 class _EuclideanMesh2D:
     def __init__(
-          self,
-          coords,
-          triangles=None,
-          quads=None,
-          values=None,
-          crs=None,
-          description=None,
+            self,
+            coords,
+            triangles=None,
+            quads=None,
+            values=None,
+            crs=None,
+            description=None,
     ):
         self._coords = coords
         self._triangles = triangles
@@ -186,54 +186,6 @@ class _EuclideanMesh2D:
             self._coords = {ids[i]: coord for i, coord in enumerate(xy)}
             self._crs = dst_crs
 
-    # auxilliary functions
-    @staticmethod
-    def sort_edges(edges):
-        if len(edges) == 0:
-            return edges
-        # start ordering the edges into linestrings
-        edge_collection = list()
-        ordered_edges = [edges.pop(-1)]
-        e0, e1 = [list(t) for t in zip(*edges)]
-        while len(edges) > 0:
-            if ordered_edges[-1][1] in e0:
-                idx = e0.index(ordered_edges[-1][1])
-                ordered_edges.append(edges.pop(idx))
-            elif ordered_edges[0][0] in e1:
-                idx = e1.index(ordered_edges[0][0])
-                ordered_edges.insert(0, edges.pop(idx))
-            elif ordered_edges[-1][1] in e1:
-                idx = e1.index(ordered_edges[-1][1])
-                ordered_edges.append(
-                    list(reversed(edges.pop(idx))))
-            elif ordered_edges[0][0] in e0:
-                idx = e0.index(ordered_edges[0][0])
-                ordered_edges.insert(
-                    0, list(reversed(edges.pop(idx))))
-            else:
-                edge_collection.append(tuple(ordered_edges))
-                idx = -1
-                ordered_edges = [edges.pop(idx)]
-            e0.pop(idx)
-            e1.pop(idx)
-        # finalize
-        if len(edge_collection) == 0 and len(edges) == 0:
-            edge_collection.append(tuple(ordered_edges))
-        else:
-            edge_collection.append(tuple(ordered_edges))
-        return edge_collection
-
-    @staticmethod
-    def signed_polygon_area(vertices):
-        # https://code.activestate.com/recipes/578047-area-of-polygon-using-shoelace-formula/
-        n = len(vertices)  # of vertices
-        area = 0.0
-        for i in range(n):
-            j = (i + 1) % n
-            area += vertices[i][0] * vertices[j][1]
-            area -= vertices[j][0] * vertices[i][1]
-        return area / 2.0
-
     # plotting functions
     @_fig
     def tricontourf(self, axes=None, show=True, figsize=None, **kwargs):
@@ -249,13 +201,13 @@ class _EuclideanMesh2D:
 
     @_fig
     def triplot(
-          self,
-          axes=None,
-          show=False,
-          figsize=None,
-          linewidth=0.07,
-          color='black',
-          **kwargs
+            self,
+            axes=None,
+            show=False,
+            figsize=None,
+            linewidth=0.07,
+            color='black',
+            **kwargs
     ):
         if len(self.triangles) > 0:
             kwargs.update({'linewidth': linewidth})
@@ -267,14 +219,14 @@ class _EuclideanMesh2D:
 
     @_fig
     def quadplot(
-          self,
-          axes=None,
-          show=False,
-          figsize=None,
-          facecolor='none',
-          edgecolor='k',
-          linewidth=0.07,
-          **kwargs
+            self,
+            axes=None,
+            show=False,
+            figsize=None,
+            facecolor='none',
+            edgecolor='k',
+            linewidth=0.07,
+            **kwargs
     ):
         if len(self.quads) > 0:
             pc = PolyCollection(
@@ -290,11 +242,11 @@ class _EuclideanMesh2D:
 
     @_fig
     def quadface(
-          self,
-          axes=None,
-          show=False,
-          figsize=None,
-          **kwargs
+            self,
+            axes=None,
+            show=False,
+            figsize=None,
+            **kwargs
     ):
         if len(self.quad4) > 0:
             pc = PolyCollection(
@@ -429,7 +381,8 @@ class _EuclideanMesh2D:
                     potential_interiors.append(i)
             # filter out nested rings
             real_interiors = list()
-            for i, p_interior in reversed(list(enumerate(potential_interiors))):
+            for i, p_interior in reversed(
+                    list(enumerate(potential_interiors))):
                 _p_interior = index_ring_collection[p_interior]
                 check = [index_ring_collection[_]
                          for j, _ in
@@ -557,6 +510,54 @@ class _EuclideanMesh2D:
     def srs(self):
         return self.proj.srs
 
+    # auxilliary functions
+    @staticmethod
+    def sort_edges(edges):
+        if len(edges) == 0:
+            return edges
+        # start ordering the edges into linestrings
+        edge_collection = list()
+        ordered_edges = [edges.pop(-1)]
+        e0, e1 = [list(t) for t in zip(*edges)]
+        while len(edges) > 0:
+            if ordered_edges[-1][1] in e0:
+                idx = e0.index(ordered_edges[-1][1])
+                ordered_edges.append(edges.pop(idx))
+            elif ordered_edges[0][0] in e1:
+                idx = e1.index(ordered_edges[0][0])
+                ordered_edges.insert(0, edges.pop(idx))
+            elif ordered_edges[-1][1] in e1:
+                idx = e1.index(ordered_edges[-1][1])
+                ordered_edges.append(
+                    list(reversed(edges.pop(idx))))
+            elif ordered_edges[0][0] in e0:
+                idx = e0.index(ordered_edges[0][0])
+                ordered_edges.insert(
+                    0, list(reversed(edges.pop(idx))))
+            else:
+                edge_collection.append(tuple(ordered_edges))
+                idx = -1
+                ordered_edges = [edges.pop(idx)]
+            e0.pop(idx)
+            e1.pop(idx)
+        # finalize
+        if len(edge_collection) == 0 and len(edges) == 0:
+            edge_collection.append(tuple(ordered_edges))
+        else:
+            edge_collection.append(tuple(ordered_edges))
+        return edge_collection
+
+    @staticmethod
+    def signed_polygon_area(vertices):
+        # https://code.activestate.com/recipes/578047-area-of-polygon-using-shoelace-formula/
+        n = len(vertices)  # of vertices
+        area = 0.0
+        for i in range(n):
+            j = (i + 1) % n
+            area += vertices[i][0] * vertices[j][1]
+            area -= vertices[j][0] * vertices[i][1]
+        return area / 2.0
+
     def _certify_input_geom(self, geom_type, geom):
         geom_types = {
             'triangles': 3,
@@ -677,7 +678,7 @@ class _EuclideanMesh2D:
         if isinstance(triangles, np.ndarray):
             triangles = {
                 id: tuple(e) for id, e in enumerate(triangles)
-                }
+            }
         self._certify_input_geom('triangles', triangles)
         self.__triangles = triangles
 
