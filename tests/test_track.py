@@ -1,5 +1,6 @@
 import unittest
 
+import numpy
 from pyproj import CRS
 
 from adcircpy.forcing.winds.best_track import ellipsoidal_distance
@@ -14,7 +15,7 @@ class TestTrack(unittest.TestCase):
 
         distance = ellipsoidal_distance(point_a, point_b, crs_a, crs_b)
 
-        assert distance == 14823241.794380495
+        assert numpy.allclose(distance, 14823241.794380495)
 
 
 if __name__ == '__main__':
