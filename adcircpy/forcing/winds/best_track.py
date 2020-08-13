@@ -7,14 +7,15 @@ import pathlib
 import time
 import urllib.request
 
-from adcircpy.forcing.winds.base import _WindForcing
 from haversine import haversine
 import matplotlib.pyplot as plt
 from matplotlib.transforms import Bbox
 import numpy as np
 from pandas import DataFrame, read_csv
-from pyproj import Proj
+from pyproj import CRS, Geod, Proj, Transformer
 from shapely.geometry import Point, Polygon
+
+from adcircpy.forcing.winds._base import _WindForcing
 
 
 class BestTrackForcing(_WindForcing):
@@ -575,3 +576,22 @@ def atcf_id(storm_id):
         return None
     else:
         return entry[20].tolist()[0].strip()
+
+
+def ellipsoidal_distance(
+        point_a: (float, float),
+        point_b: (float, float),
+        crs_a: CRS,
+        crs_b: CRS = None
+) -> float:
+    if isinstance(point_a, Point):
+        point_a = [*point_a.coords]
+    if isinstance(point_b, Point):
+        point_b = [*point_b.coords]
+    if crs_b is not None:
+        transformer = Transformer.from_crs(crs_b, crs_a)
+        point_b = transformer.transform(*point_b)
+    datum_json = crs_a.datum.to_json_dict()
+    ellipsoid = Geod(a=datum_json['ellipsoid']['semi_major_axis'],
+                     rf=datum_json['ellipsoid']['inverse_flattening'])
+    return ellipsoid.inv(point_a[0], point_a[1], point_b[0], point_b[1])[2]
