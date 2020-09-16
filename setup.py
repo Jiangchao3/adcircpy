@@ -34,6 +34,7 @@ setuptools.setup(
         'seaborn',
         'pandas',
         'pyproj>=2.6',
+        'NEMSpy',
         'numpy',
         'ordered_set',
         # 'pygrib', # TODO: make separate install
