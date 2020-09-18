@@ -8,6 +8,7 @@ import versioneer
 PARENT = pathlib.Path(__file__).parent.absolute()
 conf = setuptools.config.read_configuration(PARENT / 'setup.cfg')
 meta = conf['metadata']
+
 setuptools.setup(
     name=meta['name'],
     version=versioneer.get_version(),
@@ -23,6 +24,7 @@ setuptools.setup(
     setup_requires=["setuptools>=41.2"],
     install_requires=[
         'matplotlib',
+        'nemspy',
         'netCDF4',
         'scipy',
         'haversine',

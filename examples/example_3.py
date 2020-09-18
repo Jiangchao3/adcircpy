@@ -15,6 +15,9 @@ import tarfile
 import tempfile
 import urllib.request
 
+from nemspy import ModelingSystem
+from nemspy.model import ADCIRC
+
 from adcircpy import AdcircMesh, AdcircRun, Tides
 from adcircpy.server import SlurmConfig
 
@@ -42,6 +45,8 @@ def main():
     tidal_forcing.use_all()
 
     mesh.add_forcing(tidal_forcing)
+
+    nems = ModelingSystem(timedelta(hours=1), ocean=ADCIRC(1000))
 
     # instantiate AdcircRun object.
     slurm = SlurmConfig(
