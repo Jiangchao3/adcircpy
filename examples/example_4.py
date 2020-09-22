@@ -15,6 +15,9 @@ import tarfile
 import tempfile
 import urllib.request
 
+from nemspy import ModelingSystem
+from nemspy.model import ADCIRC
+
 from adcircpy import AdcircMesh, AdcircRun, Tides
 from adcircpy.server import SlurmConfig
 
@@ -43,6 +46,14 @@ def main():
 
     mesh.add_forcing(tidal_forcing)
 
+    start_time = datetime.now()
+    duration = timedelta(days=7)
+    interval = timedelta(hours=1)
+
+    output_directory = PARENT / "outputs/example_4"
+
+    nems = ModelingSystem(start_time, duration, interval, ocean=ADCIRC(1000))
+
     # instantiate AdcircRun object.
     slurm = SlurmConfig(
         account='account',
@@ -58,12 +69,14 @@ def main():
     )
     driver = AdcircRun(
         mesh=mesh,
-        start_date=datetime.now(),
-        end_date=timedelta(days=7),
+        start_date=start_time,
+        end_date=start_time + duration,
         spinup_time=timedelta(days=5),
         server_config=slurm
     )
-    driver.write(PARENT / "outputs/example_3", overwrite=True)
+
+    driver.write(output_directory, overwrite=True)
+    nems.write(output_directory, overwrite=True)
 
 
 if __name__ == '__main__':
