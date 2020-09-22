@@ -75,7 +75,7 @@ def main():
         server_config=slurm
     )
 
-    driver.write(output_directory, overwrite=True)
+    driver.write(output_directory, overwrite=True, nems=True)
     nems.write(output_directory, overwrite=True)
 
 
