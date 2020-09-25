@@ -52,7 +52,7 @@ def main():
 
     output_directory = PARENT / "outputs/example_4"
 
-    nems = ModelingSystem(start_time, duration, interval, ocean=ADCIRC(1000))
+    nems = ModelingSystem(start_time, duration, interval, ocn=ADCIRC(1000))
 
     # instantiate AdcircRun object.
     slurm = SlurmConfig(
