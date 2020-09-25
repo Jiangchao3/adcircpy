@@ -58,7 +58,7 @@ def main():
     slurm = SlurmConfig(
         account='account',
         ntasks=1000,
-        run_name='AdcircPy/examples/example_3.py',
+        run_name='AdcircPy/examples/example_4.py',
         partition='partition',
         walltime=timedelta(hours=8),
         mail_type='all',
