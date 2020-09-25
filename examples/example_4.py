@@ -60,7 +60,7 @@ def main():
         ntasks=1000,
         run_name='AdcircPy/examples/example_4.py',
         partition='partition',
-        walltime=timedelta(hours=8),
+        walltime=timedelta(hours=2),
         mail_type='all',
         mail_user='example@email.gov',
         log_filename='example_3.log',
