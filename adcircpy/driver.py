@@ -5,7 +5,7 @@ import pathlib
 import shutil
 import subprocess
 import tempfile
-from typing import Union
+from typing import Any, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -14,6 +14,7 @@ from psutil import cpu_count
 from adcircpy.forcing import Tides  # , Winds
 from adcircpy.forcing.waves.base import WaveForcing
 from adcircpy.forcing.winds.base import WindForcing
+from adcircpy.forcing.winds.best_track import BestTrackForcing
 from adcircpy.fort15 import Fort15
 from adcircpy.mesh import AdcircMesh
 from adcircpy.outputs.collection import OutputCollection
@@ -25,8 +26,8 @@ class AdcircRun(Fort15):
     def __init__(
             self,
             mesh: AdcircMesh,
-            start_date: datetime,
-            end_date: datetime,
+            start_date: datetime = None,
+            end_date: datetime = None,
             spinup_time: timedelta = None,
             netcdf: bool = True,
             server_config: Union[int, SSHConfig, SlurmConfig] = None,
@@ -65,11 +66,11 @@ class AdcircRun(Fort15):
     def set_elevation_stations_output(
             self,
             sampling_rate: timedelta,
-            start: Union[timedelta, int] = None,
-            end: Union[timedelta, int] = None,
+            start: datetime = None,
+            end: datetime = None,
             spinup: Union[timedelta, int] = None,
-            spinup_start: Union[timedelta, int] = None,
-            spinup_end: Union[timedelta, int] = None,
+            spinup_start: datetime = None,
+            spinup_end: datetime = None,
             netcdf: bool = True,
             harmonic_analysis: bool = False,
     ):
@@ -359,7 +360,7 @@ class AdcircRun(Fort15):
             driver: str = 'driver.sh',
     ):
         output_directory = pathlib.Path(output_directory)
-        output_directory.mkdir(parents=True, exist_ok=overwrite)
+        output_directory.mkdir(parents=True, exist_ok=True)
 
         # write fort.14
         if fort14:
@@ -388,6 +389,10 @@ class AdcircRun(Fort15):
             self._IHOT = 0
             # and call the hotstart writer,
             super().write('hotstart', output_directory / fort15, overwrite)
+            if self.wind_forcing is not None:
+                if fort22:
+                    self.wind_forcing.write(output_directory / fort22,
+                                            overwrite)
 
         # CASE 2:
         # This is a run that the user specified some ramping time.
@@ -405,10 +410,10 @@ class AdcircRun(Fort15):
             if hotstart:
                 super().write('hotstart', output_directory / hotstart,
                               overwrite)
-        if isinstance(self._server_config, SlurmConfig):
-            driver = self._server_config._filename
 
         if driver is not None:
+            if isinstance(self._server_config, SlurmConfig):
+                driver = self._server_config._filename
             DriverFile(self).write(output_directory / driver, overwrite)
 
     def import_stations(self, fort15):
@@ -746,61 +751,38 @@ class AdcircRun(Fort15):
     def _certify_output_request(
             self,
             sampling_rate: timedelta,
-            start,
-            end,
-            spinup,
-            spinup_start,
-            spinup_end,
-            netcdf,
-            harmonic_analysis,
+            start: datetime,
+            end: datetime,
+            spinup: Union[timedelta, int],
+            spinup_start: datetime,
+            spinup_end: datetime,
+            netcdf: bool,
+            harmonic_analysis: bool,
     ):
-        self._certify_sampling_rate(sampling_rate)
-        self._certify__OUT__('start', start)
-        self._certify__OUT__('end', end)
-        self._certify_spinup(spinup)
-        self._certify__OUT__('spinup_start', spinup_start)
-        self._certify__OUT__('spinup_end', spinup_end)
-        self._certify_netcdf(netcdf)
-        self._certify_harmonic_analysis(harmonic_analysis)
+        self._validate_argument(sampling_rate, timedelta, 'sampling_rate')
+        self._validate_argument(start, datetime, 'start')
+        self._validate_argument(end, datetime, 'end')
+        self._validate_argument(spinup, [timedelta, int], 'spinup')
+        self._validate_argument(spinup_start, datetime, 'spinup_start')
+        self._validate_argument(spinup_end, datetime, 'spinup_end')
+        self._validate_argument(netcdf, bool, 'netcdf', include_none=False)
+        self._validate_argument(harmonic_analysis, bool, 'harmonic_analysis',
+                                include_none=False)
 
     def _write_bash_driver(self, destination):
         source = pathlib.Path(__file__).parent / 'padcirc_driver.sh'
         shutil.copyfile(source, destination)
 
     @staticmethod
-    def _certify_sampling_rate(sampling_rate):
-        msg = 'Error: sampling_rate argument must be either None, '
-        msg += f'or an instance of type {timedelta}.'
-        if sampling_rate is not None:
-            assert isinstance(sampling_rate, timedelta), msg
-        return sampling_rate
-
-    @staticmethod
-    def _certify_spinup(spinup):
-        msg = 'Error: spinup argument must be either None '
-        msg += f'or an instance of type {timedelta}.'
-        if spinup is not None:
-            assert isinstance(spinup, timedelta), msg
-        return spinup
-
-    @staticmethod
-    def _certify__OUT__(name, var):
-        # certifies TOUTS* and TOUTF*
-        msg = f'Error: {name} argument must be either {None}, '
-        msg += f'{int} or an instance of type {timedelta}.'
-        assert isinstance(var, (type(None), timedelta, int)), msg
-
-    @staticmethod
-    def _certify_netcdf(netcdf):
-        # certify netcdf ouptut request
-        msg = f'Error: netcdf must be of type {bool}.'
-        assert isinstance(netcdf, bool), msg
-
-    @staticmethod
-    def _certify_harmonic_analysis(harmonic_analysis):
-        # certify harmonic_analysis
-        msg = f'Error: harmonic_analysis must be of type {bool}.'
-        assert isinstance(harmonic_analysis, bool), msg
+    def _validate_argument(value: Any, types: [type], name: str = None,
+                           include_none: bool = True):
+        if isinstance(types, type):
+            types = [types]
+        name = f'"{name}"' if name is not None else 'value'
+        if include_none:
+            types.append(type(None))
+        if not isinstance(value, types):
+            raise ValueError(f'{name} is not of type(s) {types}')
 
     @staticmethod
     def _launch_command(cmd, rundir):
@@ -877,6 +859,9 @@ class AdcircRun(Fort15):
 
     @_start_date.setter
     def _start_date(self, start_date):
+        if start_date is None:
+            if isinstance(self.wind_forcing, BestTrackForcing):
+                start_date = self.wind_forcing.start_date
         assert isinstance(start_date, datetime)
         self.__start_date = start_date
 
@@ -886,6 +871,9 @@ class AdcircRun(Fort15):
 
     @_end_date.setter
     def _end_date(self, end_date):
+        if end_date is None:
+            if isinstance(self.wind_forcing, BestTrackForcing):
+                end_date = self.wind_forcing.end_date
         if isinstance(end_date, timedelta):
             end_date = self._start_date + end_date
         assert isinstance(end_date, datetime)
