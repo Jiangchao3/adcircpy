@@ -370,18 +370,32 @@ class AdcircMesh(EuclideanMesh2D):
 
     def write_fort14(self, path, overwrite=False):
         super().write(path, overwrite, 'gr3')
+        # fort14 = self.fort14
+        # if path is not None:
+        #     if not isinstance(path, pathlib.Path):
+        #         path = pathlib.Path(path)
+        #     if not path.exists() or overwrite:
+        #         with open(path, 'w') as f:
+        #             f.write(fort14)
+        #     else:
+        #         msg = 'File exists, pass overwrite=True to allow overwrite.'
+        #         raise Exception(msg)
+        # else:
+        #     print(fort14)
 
     def write_fort13(self, path, overwrite=False):
+        fort13 = self.fort13
         if path is not None:
-            path = pathlib.Path(path)
-            if path.is_file() and not overwrite:
+            if not isinstance(path, pathlib.Path):
+                path = pathlib.Path(path)
+            if not path.exists() or overwrite:
+                with open(path, 'w') as f:
+                    f.write(fort13)
+            else:
                 msg = 'File exists, pass overwrite=True to allow overwrite.'
                 raise Exception(msg)
-            else:
-                with open(path, 'w') as f:
-                    f.write(self.fort13)
         else:
-            print(self.fort13)
+            print(fort13)
 
     def critical_timestep(self, cfl, maxvel=5., g=9.8):
         """
